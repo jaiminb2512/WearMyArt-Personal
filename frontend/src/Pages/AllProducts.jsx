@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toggleProductFormOpen } from "../Redux/OpenCloseSlice";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { useApiMutation } from "../utils/apiRequest";
+import { useNavigate } from "react-router-dom";
 
 const AllProducts = () => {
   const { FilterBarOpen, productFormOpen } = useSelector(
@@ -114,9 +115,12 @@ const AllProducts = () => {
     }
   };
 
+  const navigate = useNavigate()
+
   const handleOpenDialog = (product = null) => {
     setSelectedProduct(product);
-    dispatch(toggleProductFormOpen(true));
+    navigate('/add-product')
+    // dispatch(toggleProductFormOpen(true));
   };
 
   const handleCloseDialog = () => {

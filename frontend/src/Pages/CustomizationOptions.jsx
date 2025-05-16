@@ -39,7 +39,7 @@ const CustomizationOptions = () => {
   const [newOption, setNewOption] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [addType, setAddType] = useState("FontOptions");
+  const [addType, setAddType] = useState("fontOptions");
 
   const deleteMutation = useApiMutation(
     ApiURLS.DeleteCustomizationOptions.url,
@@ -58,14 +58,14 @@ const CustomizationOptions = () => {
   }, [customizationOptions]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="p-4 ml-[3vw]">Loading...</div>;
   }
 
   if (!localOptions) {
     return <div>No data available</div>;
   }
 
-  const { FontOptions, TextStyles } = localOptions;
+  const { fontOptions, textStyles } = localOptions;
 
   const handleDelete = async () => {
     if (!selectedItem || !selectedType) return;
@@ -130,8 +130,9 @@ const CustomizationOptions = () => {
             <TableCell>Actions</TableCell>
           </TableRow>
         </TableHead>
+
         <TableBody>
-          {Object.entries(data).map(([key, price]) => (
+          {Object?.entries(data)?.map(([key, price]) => (
             <TableRow key={key}>
               <TableCell>{key}</TableCell>
               <TableCell>₹{price}</TableCell>
@@ -154,8 +155,8 @@ const CustomizationOptions = () => {
     <div className="p-4 ml-[3vw]">
       <h2 className="text-2xl font-bold mb-4">Customization Options</h2>
       <div className="flex flex-col md:flex-row gap-3">
-        {renderTable(FontOptions, "Font Options", "FontOptions")}
-        {renderTable(TextStyles, "Text Styles", "TextStyles")}
+        {renderTable(fontOptions, "Font Options", "fontOptions")}
+        {renderTable(textStyles, "Text Styles", "textStyles")}
       </div>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>

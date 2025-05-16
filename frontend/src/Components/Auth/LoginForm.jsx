@@ -20,11 +20,11 @@ import { useConfirmationPopup } from "../../utils/useEntityMutations.js";
 
 const LoginForm = () => {
   const [loginData, setLoginData] = useState({
-    Email: "",
-    Password: "",
+    email: "",
+    password: "",
     OTP: "",
   });
-  const [errors, setErrors] = useState({ Email: "", Password: "", OTP: "" });
+  const [errors, setErrors] = useState({ email: "", password: "", OTP: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpButtonDisabled, setIsOtpButtonDisabled] = useState(false);
@@ -49,15 +49,15 @@ const LoginForm = () => {
 
   const validateForm = () => {
     let formValid = true;
-    const newErrors = { Email: "", Password: "", OTP: "" };
+    const newErrors = { email: "", password: "", OTP: "" };
 
-    if (!EmailRegex.test(loginData.Email)) {
-      newErrors.Email = "Invalid Email format";
+    if (!EmailRegex.test(loginData.email)) {
+      newErrors.email = "Invalid email format";
       formValid = false;
     }
 
-    if (!isOtpSent && loginData.Password.length < 6) {
-      newErrors.Password = "Password must be at least 6 characters long";
+    if (!isOtpSent && loginData.password.length < 6) {
+      newErrors.password = "password must be at least 6 characters long";
       formValid = false;
     }
 
@@ -74,11 +74,11 @@ const LoginForm = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    let requestData = { Email: loginData.Email };
+    let requestData = { email: loginData.email };
     if (isOtpSent) {
       requestData.OTP = loginData.OTP;
     } else {
-      requestData.Password = loginData.Password;
+      requestData.password = loginData.password;
     }
 
     try {
@@ -106,17 +106,17 @@ const LoginForm = () => {
   };
 
   const handleSendOtp = async () => {
-    if (!EmailRegex.test(loginData.Email)) {
+    if (!EmailRegex.test(loginData.email)) {
       setErrors((prevErrors) => ({
         ...prevErrors,
-        Email: "Enter a valid email",
+        email: "Enter a valid email",
       }));
       return;
     }
 
     setIsOtpButtonDisabled(true);
     try {
-      await sendOtpMutation.mutateAsync({ Email: loginData.Email });
+      await sendOtpMutation.mutateAsync({ email: loginData.email });
       setIsOtpSent(true);
       setIsOtpButtonDisabled(false);
     } catch (error) {
@@ -140,17 +140,17 @@ const LoginForm = () => {
   };
 
   const handleActivateAccount = () => {
-    sessionStorage.setItem("activationEmail", loginData.Email);
+    sessionStorage.setItem("activationEmail", loginData.email);
     navigate("/activate-user");
   };
 
   const handleDifferentAccount = () => {
     setLoginData({
-      Email: "",
-      Password: "",
+      email: "",
+      password: "",
       OTP: "",
     });
-    setErrors({ Email: "", Password: "", OTP: "" });
+    setErrors({ email: "", password: "", OTP: "" });
     setIsOtpSent(false);
   };
 
@@ -171,12 +171,12 @@ const LoginForm = () => {
             <TextField
               label="Email"
               type="email"
-              name="Email"
-              value={loginData.Email}
+              name="email"
+              value={loginData.email}
               onChange={onChange}
               fullWidth
-              error={!!errors.Email}
-              helperText={errors.Email}
+              error={!!errors.email}
+              helperText={errors.email}
               variant="standard"
             />
           </div>
@@ -187,12 +187,12 @@ const LoginForm = () => {
                 <TextField
                   label="Password"
                   type={showPassword ? "text" : "password"}
-                  name="Password"
-                  value={loginData.Password}
+                  name="password"
+                  value={loginData.password}
                   onChange={onChange}
                   fullWidth
-                  error={!!errors.Password}
-                  helperText={errors.Password}
+                  error={!!errors.password}
+                  helperText={errors.password}
                   variant="standard"
                   InputProps={{
                     endAdornment: (
@@ -217,7 +217,7 @@ const LoginForm = () => {
                   }}
                 >
                   <span className="text-green-500 cursor-pointer">
-                    Forgot Password ?
+                    Forgot password ?
                   </span>
                 </Typography>
               </div>

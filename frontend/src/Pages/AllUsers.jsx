@@ -139,9 +139,9 @@ const AllUsers = () => {
             {users.map((user) => (
               <React.Fragment key={user._id}>
                 <tr className="border-t border-gray-200 hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm">{user.FullName}</td>
+                  <td className="px-4 py-3 text-sm">{user.fullName}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-sm">
-                    {user.Email}
+                    {user.email}
                   </td>
                   <td className="hidden md:table-cell px-4 py-3 text-sm">
                     {formatDate(user.createdAt)}

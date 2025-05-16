@@ -18,29 +18,31 @@ import {
 } from "@mui/material";
 import { IoEyeOutline } from "react-icons/io5";
 import { FaEyeSlash } from "react-icons/fa6";
+import { useConfirmationPopup } from "../../utils/useEntityMutations.js";
 
 const steps = ["Register", "OTP Verification"];
 
 const RegisterForm = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [registerData, setRegisterData] = useState({
-    FullName: "",
-    Email: "",
-    Password: "",
+    fullName: "",
+    email: "",
+    password: "",
     OTP: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [errors, setErrors] = useState({
-    FullName: "",
-    Email: "",
-    Password: "",
+    fullName: "",
+    email: "",
+    password: "",
     OTP: "",
     Terms: "",
   });
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const showConfirmation = useConfirmationPopup();
 
   const registerMutation = useApiMutation(
     ApiURLS.Register.url,
@@ -74,30 +76,30 @@ const RegisterForm = () => {
   const validateForm = () => {
     let formValid = true;
     const newErrors = {
-      FullName: "",
-      Email: "",
-      Password: "",
+      fullName: "",
+      email: "",
+      password: "",
       OTP: "",
       Terms: "",
     };
 
     if (activeStep === 0) {
-      if (registerData.FullName.length < 3) {
-        newErrors.FullName = "FullName must be at least 6 characters long";
+      if (registerData.fullName.length < 3) {
+        newErrors.fullName = "fullName must be at least 6 characters long";
         formValid = false;
       }
       const EmailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!EmailRegex.test(registerData.Email)) {
-        newErrors.Email = "Invalid Email format";
+      if (!EmailRegex.test(registerData.email)) {
+        newErrors.email = "Invalid email format";
         formValid = false;
       }
 
       const passwordRegex =
         /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/;
 
-      if (!passwordRegex.test(registerData.Password)) {
-        newErrors.Password =
-          "Password must be 8-16 characters, include 1 uppercase letter, 1 number, and 1 special character";
+      if (!passwordRegex.test(registerData.password)) {
+        newErrors.password =
+          "password must be 8-16 characters, include 1 uppercase letter, 1 number, and 1 special character";
         formValid = false;
       }
       if (!agreeTerms) {
@@ -106,7 +108,7 @@ const RegisterForm = () => {
       }
     } else {
       if (!registerData.OTP) {
-        newErrors.OTP = "Enter the OTP sent to your Email";
+        newErrors.OTP = "Enter the OTP sent to your email";
         formValid = false;
       }
     }
@@ -114,13 +116,45 @@ const RegisterForm = () => {
     return formValid;
   };
 
+  const handleActivateAccount = () => {
+    sessionStorage.setItem("activationEmail", registerData.email);
+    navigate("/activate-user");
+  };
+
+  const handleDifferentAccount = () => {
+    setRegisterData({
+      fullName: "",
+      email: "",
+      password: "",
+      OTP: "",
+    });
+    setErrors({ fullName: "", email: "", password: "", OTP: "", Terms: "" });
+  };
+
   const handleNext = async () => {
     if (!validateForm()) return;
 
     try {
       if (activeStep === 0) {
-        await registerMutation.mutateAsync(registerData);
-        setActiveStep(1);
+        try {
+          await registerMutation.mutateAsync(registerData);
+          setActiveStep(1);
+        } catch (error) {
+          if (error.response && error.response.status === 403) {
+            showConfirmation({
+              title: "Activate Account",
+              message:
+                "Your account has been deactivated. Would you like to reactivate your account or login with a different account?",
+              onConfirm: handleActivateAccount,
+              confirmText: "Activate User",
+              confirmColor: "success",
+              cancelText: "Use Different Account",
+              cancelClick: handleDifferentAccount,
+            });
+          } else {
+            console.error("Login failed", error);
+          }
+        }
       } else {
         const otpNumber = parseInt(registerData.OTP, 10);
         if (isNaN(otpNumber)) {
@@ -132,7 +166,7 @@ const RegisterForm = () => {
         }
 
         const response = await activateUserMutation.mutateAsync({
-          Email: registerData.Email,
+          email: registerData.email,
           OTP: registerData.OTP,
         });
 
@@ -159,36 +193,36 @@ const RegisterForm = () => {
           {activeStep === 0 ? (
             <>
               <TextField
-                label="FullName"
+                label="Full Name"
                 variant="standard"
-                name="FullName"
-                value={registerData.FullName}
+                name="fullName"
+                value={registerData.fullName}
                 onChange={onChange}
                 fullWidth
-                error={!!errors.FullName}
-                helperText={errors.FullName}
+                error={!!errors.fullName}
+                helperText={errors.fullName}
               />
               <TextField
                 label="Email"
                 variant="standard"
-                name="Email"
-                type="Email"
-                value={registerData.Email}
+                name="email"
+                type="email"
+                value={registerData.email}
                 onChange={onChange}
                 fullWidth
-                error={!!errors.Email}
-                helperText={errors.Email}
+                error={!!errors.email}
+                helperText={errors.email}
               />
               <TextField
                 label="Password"
                 variant="standard"
-                name="Password"
-                type={showPassword ? "text" : "Password"}
-                value={registerData.Password}
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={registerData.password}
                 onChange={onChange}
                 fullWidth
-                error={!!errors.Password}
-                helperText={errors.Password}
+                error={!!errors.password}
+                helperText={errors.password}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

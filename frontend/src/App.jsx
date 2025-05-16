@@ -43,6 +43,7 @@ import CustomizationOptions from "./Pages/CustomizationOptions";
 import AuthRoute from "./Components/AuthRoute";
 import Dashboard from "./Pages/Dashboard";
 import Popup from "./Components/PopUp";
+import AddProduct from "./Pages/AddProduct";
 
 const queryClient = new QueryClient();
 
@@ -173,6 +174,7 @@ const AppLayout = () => {
               <Route path="/dashboard/all-products" element={<AllProducts />} />
               <Route path="/dashboard/all-orders" element={<AllOrders />} />
               <Route path="/dashboard/all-users" element={<AllUsers />} />
+              <Route path="/add-product" element={<AddProduct />} />
               <Route
                 path="/dashboard/customization-options"
                 element={<CustomizationOptions />}

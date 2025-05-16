@@ -12,16 +12,16 @@ import {
 } from "@mui/material";
 import MTooltipButton from "../MTooltipButton";
 
-const steps = ["Enter Email", "Verify OTP"];
+const steps = ["Enter email", "Verify OTP"];
 
 const ActivationForm = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [activationData, setActivationData] = useState({
-    Email: "",
+    email: "",
     OTP: "",
   });
   const [errors, setErrors] = useState({
-    Email: "",
+    email: "",
     OTP: "",
   });
 
@@ -51,19 +51,19 @@ const ActivationForm = () => {
   const validateForm = () => {
     let formValid = true;
     const newErrors = {
-      Email: "",
+      email: "",
       OTP: "",
     };
 
     if (activeStep === 0) {
       const EmailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!EmailRegex.test(activationData.Email)) {
-        newErrors.Email = "Invalid Email format";
+      if (!EmailRegex.test(activationData.email)) {
+        newErrors.email = "Invalid email format";
         formValid = false;
       }
     } else {
       if (!activationData.OTP) {
-        newErrors.OTP = "Enter the OTP sent to your Email";
+        newErrors.OTP = "Enter the OTP sent to your email";
         formValid = false;
       }
     }
@@ -75,11 +75,11 @@ const ActivationForm = () => {
     if (!validateForm()) return;
 
     if (activeStep === 0) {
-      await sendingMailMutation.mutateAsync({ Email: activationData.Email });
+      await sendingMailMutation.mutateAsync({ email: activationData.email });
       setActiveStep(1);
     } else {
       const response = await verifyOTPMutation.mutateAsync({
-        Email: activationData.Email,
+        email: activationData.email,
         OTP: activationData.OTP,
       });
 
@@ -107,20 +107,20 @@ const ActivationForm = () => {
               <TextField
                 label="Email"
                 variant="standard"
-                name="Email"
+                name="email"
                 type="email"
-                value={activationData.Email}
+                value={activationData.email}
                 onChange={onChange}
                 fullWidth
                 margin="normal"
-                error={!!errors.Email}
-                helperText={errors.Email}
+                error={!!errors.email}
+                helperText={errors.email}
               />
             </>
           ) : (
             <>
               <Typography variant="h6" gutterBottom>
-                Enter the OTP sent to {activationData.Email}
+                Enter the OTP sent to {activationData.email}
               </Typography>
               <TextField
                 label="OTP"

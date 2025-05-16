@@ -13,8 +13,8 @@ export default function OpenIconSpeedDial() {
   const actions = user ? LoginData : LogoutData;
   const navigate = useNavigate();
 
-  const userInitials = user?.FullName
-    ? user.FullName.split(" ")
+  const userInitials = user?.fullName
+    ? user.fullName.split(" ")
         .map((word) => word[0])
         .join("")
         .toUpperCase()

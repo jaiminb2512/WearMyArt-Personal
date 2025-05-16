@@ -37,7 +37,7 @@ const Profile = () => {
   const { user } = useSelector((state) => state.user);
   const [isUserActive, setIsUserActive] = useState(user?.isActive ?? true);
   const [isEditing, setIsEditing] = useState(false);
-  const [fullName, setFullName] = useState(user?.FullName || "Unknown User");
+  const [fullName, setFullName] = useState(user?.fullName || "Unknown User");
   const [error, setError] = useState(null);
 
   const showConfirmation = useConfirmationPopup();
@@ -64,13 +64,9 @@ const Profile = () => {
   };
 
   const handleDeactivateUser = async () => {
-    try {
-      await deactivateUserMutation.mutateAsync({});
-      setIsUserActive(false);
-      logOut();
-    } catch (err) {
-      setError("Failed to deactivate account. Please try again.");
-    }
+    await deactivateUserMutation.mutateAsync({});
+    setIsUserActive(false);
+    logOut();
   };
 
   const handleEdit = () => {
@@ -79,7 +75,7 @@ const Profile = () => {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setFullName(user?.FullName || "Unknown User");
+    setFullName(user?.fullName || "Unknown User");
   };
 
   const UpdateUserMutation = useApiMutation(
@@ -88,13 +84,9 @@ const Profile = () => {
   );
 
   const handleSave = async () => {
-    try {
-      await UpdateUserMutation.mutateAsync({ FullName: fullName });
-      setIsEditing(false);
-      setError(null);
-    } catch (err) {
-      setError("Failed to update profile. Please try again.");
-    }
+    await UpdateUserMutation.mutateAsync({ fullName: fullName });
+    setIsEditing(false);
+    setError(null);
   };
 
   const getInitials = (name) => {
@@ -106,7 +98,7 @@ const Profile = () => {
       .toUpperCase();
   };
 
-  const initials = user?.FullName ? getInitials(user.FullName) : "U";
+  const initials = user?.fullName ? getInitials(user.fullName) : "U";
 
   const navigate = useNavigate();
 
@@ -121,7 +113,7 @@ const Profile = () => {
   useEffect(() => {
     if (user) {
       setIsUserActive(user.isActive ?? true);
-      setFullName(user.FullName || "Unknown User");
+      setFullName(user.fullName || "Unknown User");
     }
   }, [user]);
 
@@ -224,7 +216,7 @@ const Profile = () => {
             <Box display="flex" alignItems="center" gap={2}>
               <Email color="primary" />
               <Typography variant="body1" color="text.secondary">
-                {user?.Email || "No email provided"}
+                {user?.email || "No email provided"}
               </Typography>
             </Box>
 
