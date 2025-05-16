@@ -1,11 +1,9 @@
-import mongoose from "mongoose";
-
-const { Schema, model } = mongoose;
+import { model, Schema, Types } from "mongoose";
 
 const userAddressSchema = new Schema(
   {
     userId: {
-      type: Schema.Types.ObjectId,
+      type: Types.ObjectId,
       ref: "User",
       required: true,
     },
@@ -42,8 +40,13 @@ const userAddressSchema = new Schema(
     addressType: {
       type: String,
       enum: ["Home", "Work", "Other"],
-      default: "Home",
+      default: "Other",
     },
+    noOfOrder : {
+      type: Number,
+      default : 0,
+      select : false
+    }
   },
   { timestamps: true }
 );

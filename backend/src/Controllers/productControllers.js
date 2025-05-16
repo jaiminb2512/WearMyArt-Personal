@@ -3,38 +3,57 @@ import Product from "../models/productModel.js";
 import apiResponse from "../utils/apiResponse.js";
 import deleteFiles from "../utils/deleteFiles.js";
 import path from "path";
+import {
+  addProductValidator,
+  updateProductValidator,
+  getAllProductsFilterValidator,
+  getAllActiveProductsFilterValidator,
+  productIdsValidator,
+} from "../validators/productValidator.js";
 
 const addProduct = async (req, res) => {
   try {
-    const {
-      Size,
-      Price,
-      DiscountedPrice,
-      Sleeve,
-      Stock,
-      Color,
-      CustomizeOption,
-    } = req.body;
-
     if (!req.files || req.files.length === 0) {
       return apiResponse(res, false, null, "No images uploaded", 400);
     }
 
-    const ImgURL = req.files.map(
+    const imgURL = req.files.map(
       (file) => `/uploads/${path.basename(file.path)}`
     );
 
-    const newProduct = new Product({
-      ImgURL,
-      Size,
-      Price,
-      DiscountedPrice,
-      Sleeve,
-      Stock,
-      Color,
-      CustomizeOption,
-    });
+    console.log(imgURL)
 
+    const parsedBody = {
+      ...req.body,
+      imgURL,
+      price: Number(req.body.price),
+      discountedPrice: req.body.discountedPrice
+        ? Number(req.body.discountedPrice)
+        : undefined,
+      maxEditingCost: Number(req.body.maxEditingCost),
+      isDiscontinued:
+        req.body.isDiscontinued === "true" || req.body.isDiscontinued === true,
+      sizeStock: req.body.sizeStock
+        ? JSON.parse(req.body.sizeStock)
+        : undefined,
+      otherDetails: req.body.otherDetails
+        ? JSON.parse(req.body.otherDetails)
+        : undefined,
+    };
+
+    const validationResult = addProductValidator.safeParse(parsedBody);
+
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
+
+    const newProduct = new Product(validationResult.data);
     await newProduct.save();
 
     return apiResponse(
@@ -51,46 +70,46 @@ const addProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
-    const { id, Size, Price, DiscountedPrice, Stock, Sleeve, Gender, Color } =
-      req.body;
+    const { id } = req.params;
 
-    const FoundProduct = await Product.findById(id);
+    const validationResult = updateProductValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
 
-    if (!FoundProduct) {
+    const foundProduct = await Product.findById(id);
+    if (!foundProduct) {
       return apiResponse(res, false, null, "Product not found", 404);
     }
 
     if (req.files && req.files.length > 0) {
-      if (FoundProduct.ImgURL && FoundProduct.ImgURL.length > 0) {
-        deleteFiles(FoundProduct.ImgURL);
+      if (foundProduct.imgURL && foundProduct.imgURL.length > 0) {
+        deleteFiles(foundProduct.imgURL);
       }
 
-      const ImgURL = req.files.map(
+      const imgURL = req.files.map(
         (file) => `/uploads/${path.basename(file.path)}`
       );
-      FoundProduct.ImgURL = ImgURL;
+      validationResult.data.imgURL = imgURL;
     }
 
-    const UpdatedProduct = await Product.findByIdAndUpdate(
+    const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      {
-        Size,
-        Price,
-        DiscountedPrice,
-        Sleeve,
-        Stock,
-        Gender,
-        Color,
-        ImgURL: FoundProduct.ImgURL,
-      },
+      validationResult.data,
       { new: true }
     );
 
     return apiResponse(
       res,
       true,
-      UpdatedProduct,
-      "Product Updated successfully",
+      updatedProduct,
+      "Product updated successfully",
       200
     );
   } catch (error) {
@@ -100,18 +119,18 @@ const updateProduct = async (req, res) => {
 
 const getAllCustomersOfProduct = async (req, res) => {
   try {
-    const { ProductId } = req.body;
+    const { productId } = req.params;
 
-    if (!ProductId) {
-      return apiResponse(res, false, null, "ProductId is required", 404);
+    if (!productId) {
+      return apiResponse(res, false, null, "Product ID is required", 400);
     }
 
-    const productObjectId = new mongoose.Types.ObjectId(ProductId);
+    const productObjectId = new mongoose.Types.ObjectId(productId);
 
     const pipeline = [
       {
         $match: {
-          ProductId: productObjectId,
+          productId: productObjectId,
         },
       },
       {
@@ -121,7 +140,7 @@ const getAllCustomersOfProduct = async (req, res) => {
       },
       {
         $project: {
-          CustomerId: 1,
+          customerId: 1,
         },
       },
     ];
@@ -144,65 +163,79 @@ const getAllProducts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    const validationResult = getAllProductsFilterValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
+
     const {
-      Size,
-      Sleeve,
-      CustomizeOption,
-      Color,
-      Price,
-      Avalibility,
+      size,
+      sleeve,
+      customizeOption,
+      color,
+      price,
+      availability,
       sortOrder,
-    } = req.body;
+    } = validationResult.data;
 
     const filterQuery = {};
 
-    if (Size && Size.length > 0) {
-      filterQuery.Size = { $in: Size };
+    if (size && size.length > 0) {
+      filterQuery.size = { $in: size };
     }
 
-    if (Sleeve && Sleeve.length > 0) {
-      filterQuery.Sleeve = { $in: Sleeve };
+    if (sleeve && sleeve.length > 0) {
+      filterQuery.sleeve = { $in: sleeve };
     }
 
-    if (CustomizeOption && CustomizeOption.length > 0) {
-      filterQuery.CustomizeOption = { $in: CustomizeOption };
+    if (customizeOption && customizeOption.length > 0) {
+      filterQuery.customizeOption = { $in: customizeOption };
     }
 
-    if (Color && Color.length > 0) {
-      filterQuery.Color = { $in: Color };
+    if (color && color.length > 0) {
+      filterQuery.color = { $in: color };
     }
 
-    if (Price && Price.length === 2) {
-      filterQuery.Price = { $gte: Price[0], $lte: Price[1] };
+    if (price && price.length === 2) {
+      filterQuery.price = { $gte: price[0], $lte: price[1] };
     }
 
-    if (Avalibility && !Avalibility.includes("All")) {
-      if (Avalibility.includes("Discontinued")) {
+    if (availability && !availability.includes("All")) {
+      if (availability.includes("Discontinued")) {
         filterQuery.isDiscontinued = true;
-      } else if (Avalibility.includes("Available")) {
+      } else if (availability.includes("Available")) {
         filterQuery.isDiscontinued = false;
       }
     }
 
     const sortOptions = {};
     if (sortOrder === "lowToHigh") {
-      sortOptions.Price = 1;
+      sortOptions.price = 1;
     } else if (sortOrder === "highToLow") {
-      sortOptions.Price = -1;
+      sortOptions.price = -1;
     }
 
-    const Products = await Product.find(filterQuery)
+    const products = await Product.find(filterQuery)
       .sort(sortOptions)
       .skip(skip)
       .limit(limit);
 
-    const totalProducts = await Product.countDocuments(filterQuery);
+    const totalProducts = await Product.countDocuments({
+      filterQuery,
+      isDiscontinued : false,
+    });
 
     return apiResponse(
       res,
       true,
       {
-        products: Products,
+        products,
         pagination: {
           totalProducts,
           page,
@@ -224,43 +257,57 @@ const getAllActiveProducts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const { Size, Sleeve, CustomizeOption, Color, Price, sortOrder } = req.body;
+    const validationResult = getAllActiveProductsFilterValidator.safeParse(
+      req.body
+    );
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
+
+    const { size, sleeve, customizeOption, color, price, sortOrder } =
+      validationResult.data;
 
     const filterQuery = {
       isDiscontinued: false,
     };
 
-    if (Size && Size.length > 0) {
-      filterQuery.Size = { $in: Size };
+    if (size && size.length > 0) {
+      filterQuery.size = { $in: size };
     }
 
-    if (Sleeve && Sleeve.length > 0) {
-      filterQuery.Sleeve = { $in: Sleeve };
+    if (sleeve && sleeve.length > 0) {
+      filterQuery.sleeve = { $in: sleeve };
     }
 
-    if (CustomizeOption && CustomizeOption.length > 0) {
-      filterQuery.CustomizeOption = { $in: CustomizeOption };
+    if (customizeOption && customizeOption.length > 0) {
+      filterQuery.customizeOption = { $in: customizeOption };
     }
 
-    if (Color && Color.length > 0) {
-      filterQuery.Color = { $in: Color };
+    if (color && color.length > 0) {
+      filterQuery.color = { $in: color };
     }
 
-    if (Price && Price.length === 2) {
-      filterQuery.Price = { $gte: Price[0], $lte: Price[1] };
+    if (price && price.length === 2) {
+      filterQuery.price = { $gte: price[0], $lte: price[1] };
     }
 
     const sortOptions = {};
     if (sortOrder === "lowToHigh") {
-      sortOptions.Price = 1;
+      sortOptions.price = 1;
     } else if (sortOrder === "highToLow") {
-      sortOptions.Price = -1;
+      sortOptions.price = -1;
     }
 
-    const Products = await Product.find(filterQuery)
+    const products = await Product.find(filterQuery)
       .sort(sortOptions)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
 
     const totalProducts = await Product.countDocuments(filterQuery);
 
@@ -268,7 +315,7 @@ const getAllActiveProducts = async (req, res) => {
       res,
       true,
       {
-        products: Products,
+        products,
         pagination: {
           totalProducts,
           page,
@@ -280,7 +327,6 @@ const getAllActiveProducts = async (req, res) => {
       200
     );
   } catch (error) {
-    console.log(error);
     return apiResponse(res, false, null, error.message, 500);
   }
 };
@@ -292,7 +338,9 @@ const getSingleProduct = async (req, res) => {
     const singleProduct = await Product.findById(id);
 
     if (!singleProduct) {
-      return apiResponse(res, false, null, "Product not found", 404);
+      return apiResponse(res, false, null, "Product not found", 404).select(
+        "+description +otherDetails +noOfRatings"
+      );
     }
 
     return apiResponse(
@@ -309,11 +357,22 @@ const getSingleProduct = async (req, res) => {
 
 const disContinueProducts = async (req, res) => {
   try {
-    const { Products } = req.body;
+    const validationResult = productIdsValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
 
-    for (const productId of Products) {
-      const FoundProduct = await Product.findById(productId);
-      if (!FoundProduct) {
+    const { products } = validationResult.data;
+
+    for (const productId of products) {
+      const foundProduct = await Product.findById(productId);
+      if (!foundProduct) {
         return apiResponse(
           res,
           false,
@@ -323,25 +382,17 @@ const disContinueProducts = async (req, res) => {
         );
       }
 
-      FoundProduct.isDiscontinued = true;
-      await FoundProduct.save();
-    }
-
-    if (Products.length != 1) {
-      return apiResponse(
-        res,
-        true,
-        null,
-        "Products are discontinued successfully",
-        200
-      );
+      foundProduct.isDiscontinued = true;
+      await foundProduct.save();
     }
 
     return apiResponse(
       res,
       true,
       null,
-      "Product is discontinued successfully",
+      products.length === 1
+        ? `Product ${products[0]} is discontinued successfully`
+        : "Products are discontinued successfully",
       200
     );
   } catch (error) {
@@ -351,11 +402,22 @@ const disContinueProducts = async (req, res) => {
 
 const reContinueProducts = async (req, res) => {
   try {
-    const { Products } = req.body;
+    const validationResult = productIdsValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        validationResult.error.errors[0].message,
+        400
+      );
+    }
 
-    for (const productId of Products) {
-      const FoundProduct = await Product.findById(productId);
-      if (!FoundProduct) {
+    const { products } = validationResult.data;
+
+    for (const productId of products) {
+      const foundProduct = await Product.findById(productId);
+      if (!foundProduct) {
         return apiResponse(
           res,
           false,
@@ -365,25 +427,17 @@ const reContinueProducts = async (req, res) => {
         );
       }
 
-      FoundProduct.isDiscontinued = false;
-      await FoundProduct.save();
-    }
-
-    if (Products.length != 1) {
-      return apiResponse(
-        res,
-        true,
-        null,
-        "Products are recontinued successfully",
-        200
-      );
+      foundProduct.isDiscontinued = false;
+      await foundProduct.save();
     }
 
     return apiResponse(
       res,
       true,
       null,
-      "Product is recontinued successfully",
+      products.length === 1
+        ? `Product ${products[0]} is recontinued successfully`
+        : "Products are recontinued successfully",
       200
     );
   } catch (error) {
@@ -392,12 +446,12 @@ const reContinueProducts = async (req, res) => {
 };
 
 export {
-  addProduct,
+  addProduct, // done
   getAllCustomersOfProduct,
-  getAllProducts,
-  getAllActiveProducts,
-  getSingleProduct,
-  updateProduct,
-  disContinueProducts,
-  reContinueProducts,
+  getAllProducts, // done
+  getAllActiveProducts, // done
+  getSingleProduct, // done
+  updateProduct, 
+  disContinueProducts, // done
+  reContinueProducts, // done
 };

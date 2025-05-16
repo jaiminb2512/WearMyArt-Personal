@@ -1,53 +1,95 @@
-import mongoose, { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 
 const OrderSchema = new Schema(
   {
-    ProductId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
-    CustomerId: {
-      type: mongoose.Schema.Types.ObjectId,
+    customerId: {
+      type: Types.ObjectId,
       ref: "User",
       required: true,
     },
-    CustomerImg: {
+    status: {
       type: String,
-    },
-    Font: {
-      type: String,
-    },
-    TextStyle: {
-      type: [String],
-      default: [],
-    },
-    Text: {
-      type: String,
-    },
-    Color: {
-      type: String,
-    },
-    FinalProductImg: {
-      type: String,
-    },
-    Quantity: {
-      type: Number,
-      default: 1,
-    },
-    FinalCost: {
-      type: Number,
-    },
-    Status: {
-      type: String,
-      enum: ["Pending", "Process", "Ready", "Shipped", "Completed", "Rejected"],
-      default: "Pending",
-    },
-    CustomizedType: {
-      type: String,
-      enum: ["Photo", "Text", "Both"],
+      enum: [
+        "Cart",
+        "Pending",
+        "Process",
+        "Ready",
+        "Shipped",
+        "Completed",
+        "Rejected",
+      ],
       required: true,
     },
+    totalAmount: {
+      type: Number,
+    },
+    paymentInfo: {
+      type: {
+        method: {
+          type: String,
+          enum: ["Credit Card", "PayPal", "Bank Transfer", "Other"],
+        },
+        transactionId: { type: String },
+        paymentStatus: {
+          type: String,
+          enum: ["Pending", "Paid", "Failed", "Refunded"],
+          default: "Pending",
+        },
+      },
+      select: false,
+    },
+    orderNotes: {
+      type: String,
+      select: false,
+    },
+    shippingInfo: {
+      type: {
+        shippingAddress: {
+          type: Types.ObjectId,
+          ref: "UserAddress",
+        },
+        shippingCharge: {
+          type: Number,
+          required: true,
+        },
+      },
+      select: false,
+    },
+    rejectionMessage: {
+      type: String,
+      select: false,
+    },
+    purchasedProductDetails: [
+      {
+        productId: {
+          type: Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        customizedType: {
+          type: String,
+          enum: ["Photo", "Text", "Both"],
+          required: true,
+        },
+        font: { type: String },
+        text: { type: String },
+        textColor: { type: String },
+        textStyle: { type: [String], default: [] },
+        customerImgForProduct: { type: String },
+        finalProductImg: { type: String, required: true },
+        quantity: { type: Number, default: 1 },
+        finalCostOfProduct: { type: Number, required: true },
+        status: {
+          type: String,
+          enum: ["Pending", "Accepted", "Rejected"],
+          default: "Pending",
+        },
+        rejectionMessage: {
+          type: String,
+          select: false, 
+        },
+      },
+    ],
   },
   {
     timestamps: true,

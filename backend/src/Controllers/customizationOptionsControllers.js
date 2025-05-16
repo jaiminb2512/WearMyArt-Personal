@@ -1,16 +1,34 @@
 import CustomizationOptions from "../models/customizationOptionsModel.js";
 import apiResponse from "../utils/apiResponse.js";
+import {
+  addCustomizationOptionsValidator,
+  deleteCustomizationOptionsValidator,
+  getCustomizationOptionsValidator,
+} from "../validators/customizationOptionsValidator.js";
 
 const addCustomizationOptions = async (req, res) => {
-  const { FontOptions, TextStyles } = req.body;
-
   try {
+    const validation = addCustomizationOptionsValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { fontOptions, textStyles } = req.body;
+
     let customizationOptions = await CustomizationOptions.findOne({});
 
     if (!customizationOptions) {
       customizationOptions = new CustomizationOptions({
-        FontOptions: new Map(Object.entries(FontOptions)),
-        TextStyles: new Map(Object.entries(TextStyles)),
+        fontOptions: new Map(Object.entries(fontOptions)),
+        textStyles: new Map(Object.entries(textStyles)),
       });
 
       await customizationOptions.save();
@@ -23,15 +41,15 @@ const addCustomizationOptions = async (req, res) => {
       );
     }
 
-    if (FontOptions) {
-      for (const [key, value] of Object.entries(FontOptions)) {
-        customizationOptions.FontOptions.set(key, value);
+    if (fontOptions) {
+      for (const [key, value] of Object.entries(fontOptions)) {
+        customizationOptions.fontOptions.set(key, value);
       }
     }
 
-    if (TextStyles) {
-      for (const [key, value] of Object.entries(TextStyles)) {
-        customizationOptions.TextStyles.set(key, value);
+    if (textStyles) {
+      for (const [key, value] of Object.entries(textStyles)) {
+        customizationOptions.textStyles.set(key, value);
       }
     }
 
@@ -50,9 +68,22 @@ const addCustomizationOptions = async (req, res) => {
 };
 
 const deleteCustomizationOptions = async (req, res) => {
-  const { FontOptions, TextStyles } = req.body;
-
   try {
+    const validation = deleteCustomizationOptionsValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { fontOptions, textStyles } = req.body;
+
     let customizationOptions = await CustomizationOptions.findOne({});
 
     if (!customizationOptions) {
@@ -65,15 +96,15 @@ const deleteCustomizationOptions = async (req, res) => {
       );
     }
 
-    if (FontOptions) {
-      for (const font of FontOptions) {
-        customizationOptions.FontOptions.delete(font);
+    if (fontOptions) {
+      for (const font of fontOptions) {
+        customizationOptions.fontOptions.delete(font);
       }
     }
 
-    if (TextStyles) {
-      for (const style of TextStyles) {
-        customizationOptions.TextStyles.delete(style);
+    if (textStyles) {
+      for (const style of textStyles) {
+        customizationOptions.textStyles.delete(style);
       }
     }
 
@@ -93,13 +124,36 @@ const deleteCustomizationOptions = async (req, res) => {
 
 const getCustomizationOptions = async (req, res) => {
   try {
+    const validation = getCustomizationOptionsValidator.safeParse(req.query);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
     let customizationOptions = await CustomizationOptions.findOne({});
+
+    if (!customizationOptions) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        "No customization options found",
+        404
+      );
+    }
 
     return apiResponse(
       res,
       true,
       customizationOptions,
-      "Customization options Fetched successfully",
+      "Customization options fetched successfully",
       200
     );
   } catch (error) {
@@ -108,7 +162,7 @@ const getCustomizationOptions = async (req, res) => {
 };
 
 export {
-  addCustomizationOptions,
-  deleteCustomizationOptions,
-  getCustomizationOptions,
+  addCustomizationOptions, // done
+  deleteCustomizationOptions, // done 
+  getCustomizationOptions, // done
 };

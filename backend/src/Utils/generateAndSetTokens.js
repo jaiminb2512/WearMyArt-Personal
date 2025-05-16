@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 export const generateAndSetTokens = (_id, res) => {
-  const RefreshToken = jwt.sign({ _id }, process.env.JWT_SECRET, {
+  const refreshToken = jwt.sign({ _id }, process.env.JWT_SECRET, {
     expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
   });
 
@@ -10,7 +10,7 @@ export const generateAndSetTokens = (_id, res) => {
     secure: true,
   };
 
-  res.cookie("RefreshToken", RefreshToken, Options);
+  res.cookie("refreshToken", refreshToken, Options);
 
-  return { RefreshToken };
+  return { refreshToken };
 };

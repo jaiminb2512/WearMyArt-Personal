@@ -3,7 +3,7 @@ import apiResponse from "../utils/apiResponse.js";
 import User from "../models/userModel.js";
 
 const tokenVerification = async function (req, res, next, checkAdmin = false) {
-  const token = req.cookies?.RefreshToken || req.header("RefreshToken");
+  const token = req.cookies?.refreshToken || req.header("refreshToken");
 
   if (!token) {
     return apiResponse(res, false, null, "Unauthorized", 401);
