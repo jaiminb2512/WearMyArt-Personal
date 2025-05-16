@@ -1,10 +1,27 @@
 import apiResponse from "../utils/apiResponse.js";
 import Notification from "../models/notificationModel.js";
+import {
+  paginationQuerySchema,
+  markAsReadValidator,
+  addNotificationValidator,
+} from "../validators/notificationValidator.js";
 
 const getAllNotification = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const validation = paginationQuerySchema.safeParse(req.query);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { page, limit } = validation.data;
     const skip = (page - 1) * limit;
 
     const userId = req.user._id;
@@ -14,7 +31,7 @@ const getAllNotification = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    const totalNotification = await Notification.countDocuments();
+    const totalNotification = await Notification.countDocuments({ userId, read: false });
 
     return apiResponse(
       res,
@@ -38,7 +55,20 @@ const getAllNotification = async (req, res) => {
 
 const markAsRead = async (req, res) => {
   try {
-    const { notificationId } = req.body;
+    const validation = markAsReadValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { notificationId } = validation.data;
     const userId = req.user._id;
 
     const notification = await Notification.findOneAndUpdate(
@@ -71,6 +101,16 @@ const markAllAsRead = async (req, res) => {
       { userId, read: false },
       { $set: { read: true } }
     );
+
+    if (result.modifiedCount === 0) {
+      return apiResponse(
+        res,
+        false,
+        null,
+        "No unread notifications found",
+        404
+      );
+    }
 
     return apiResponse(
       res,

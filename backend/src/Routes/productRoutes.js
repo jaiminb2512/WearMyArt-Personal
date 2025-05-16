@@ -17,7 +17,7 @@ const router = Router();
 router.post(
   "/add-product",
   (req, res, next) => tokenVerification(req, res, next, true),
-  upload.array("ProductImages", 5),
+  upload.array("productImages", 5),
   addProduct
 );
 

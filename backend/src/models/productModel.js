@@ -1,44 +1,94 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 
 const ProductSchema = new Schema(
   {
-    ImgURL: {
+    imgURL: {
       type: [String],
-      required: false,
-    },
-    Size: {
-      type: String,
-      enum: ["XXL", "XL", "L", "M", "S"],
       required: true,
+      validate: {
+        validator: function (value) {
+          return value.length <= 5;
+        },
+        message: "You can upload a maximum of 5 images.",
+      },
     },
-    Price: {
+    sizeStock: {
+      type: Map,
+      of: Number,
+      default: {},
+      validate: {
+        validator: function (value) {
+          const validSizes = ["S", "M", "L", "XL", "XXL"];
+          return Array.from(value.keys()).every((size) =>
+            validSizes.includes(size)
+          );
+        },
+        message: (props) =>
+          `Invalid size key detected in SizeStock: ${Array.from(
+            props.value.keys()
+          )
+            .filter((k) => !["S", "M", "L", "XL", "XXL"].includes(k))
+            .join(", ")}`,
+      },
+    },
+    price: {
       type: Number,
       required: true,
     },
-    DiscountedPrice: {
+    discountedPrice: {
       type: Number,
     },
-    Sleeve: {
+    sleeve: {
       type: String,
       enum: ["Full Sleeve", "Half Sleeve", "Sleeveless"],
       required: true,
     },
-    Stock: {
-      type: Number,
-      required: true,
-    },
-    Color: {
+    color: {
       type: String,
       required: true,
     },
-    CustomizeOption: {
+    customizeOption: {
       type: String,
       enum: ["Photo", "Text", "Both"],
       required: true,
     },
+    description: {
+      type: String,
+      required: true,
+      select: false,
+    },
+    maxEditingCost: {
+      type: Number,
+      required: true,
+    },
+    otherDetails: {
+      type: Map,
+      of: String,
+      default: {},
+      select: false,
+    },
     isDiscontinued: {
       type: Boolean,
       default: false,
+    },
+    comments: {
+      type: [ { type: Types.ObjectId, ref: "Comment" } ],
+      select: false
+    },    
+    ratingRef: {
+      type: Types.ObjectId,
+      ref: "Ratings",
+      select: false,
+    },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null,
+    },
+    noOfRatings: {
+      type: Number,
+      select: false,
     },
   },
   { timestamps: true }

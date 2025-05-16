@@ -6,6 +6,19 @@ import { generateAndSetTokens } from "../utils/generateAndSetTokens.js";
 import { sendMail } from "../utils/sendMail.js";
 import bcrypt from "bcrypt";
 import notificationQueue from "../queues/notificationQueue.js";
+import {
+  registerValidator,
+  loginValidator,
+  sendingMailForLoginValidator,
+  sendingMailForForgotPasswordValidator,
+  otpVerifyForForgotPasswordValidator,
+  forgotPasswordValidator,
+  updateUserValidator,
+  sendingMailForActivateValidator,
+  verifyActivationOTPValidator,
+  blockUsersValidator,
+  unblockUsersValidator,
+} from "../validators/userValidator.js";
 
 const generateOTP = () => {
   const OTP = Math.floor(100000 + Math.random() * 900000);
@@ -14,88 +27,24 @@ const generateOTP = () => {
   return { OTP, OTPExpiry };
 };
 
-const validatePassword = (password) => {
-  const minLength = 8;
-  const maxLength = 16;
-  const uppercaseRegex = /[A-Z]/;
-  const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
-  const numericRegex = /[0-9]/;
-
-  if (password.length < minLength || password.length > maxLength) {
-    return {
-      success: false,
-      message: `Password must be between ${minLength} and ${maxLength} characters.`,
-    };
-  }
-
-  if (!uppercaseRegex.test(password)) {
-    return {
-      success: false,
-      message: "Password must contain at least one uppercase letter.",
-    };
-  }
-
-  if (!specialCharRegex.test(password)) {
-    return {
-      success: false,
-      message: "Password must contain at least one special character.",
-    };
-  }
-
-  if (!numericRegex.test(password)) {
-    return {
-      success: false,
-      message: "Password must contain at least one numerical character.",
-    };
-  }
-
-  return { success: true };
-};
-
-const validateUserCredentials = ({ FullName, Email, Password }) => {
-  if (!FullName || typeof FullName !== "string" || FullName.trim().length < 3) {
-    return {
-      success: false,
-      message: "Full name must be at least 3 characters long.",
-    };
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!Email || !emailRegex.test(Email)) {
-    return {
-      success: false,
-      message: "Invalid email address.",
-    };
-  }
-
-  const passwordValidation = validatePassword(Password);
-  if (!passwordValidation.success) {
-    return passwordValidation;
-  }
-
-  return { success: true };
-};
-
 const registerUser = async (req, res) => {
+  const { fullName, email, password } = req.body;
+
+  const validation = registerValidator.safeParse({ fullName, email, password });
+
+  if (!validation.success) {
+    const firstError = validation.error.errors[0];
+    return apiResponse(
+      res,
+      false,
+      null,
+      firstError.message,
+      firstError.statusCode || 400
+    );
+  }
+
   try {
-    const { FullName, Email, Password } = req.body;
-
-    const userCredentialsValidation = validateUserCredentials({
-      FullName,
-      Email,
-      Password,
-    });
-    if (!userCredentialsValidation.success) {
-      return apiResponse(
-        res,
-        false,
-        null,
-        userCredentialsValidation.message,
-        400
-      );
-    }
-
-    const existedUser = await User.findOne({ Email });
+    const existedUser = await User.findOne({ email });
 
     if (existedUser) {
       return apiResponse(
@@ -105,17 +54,17 @@ const registerUser = async (req, res) => {
         existedUser.isActive
           ? "User already exists"
           : "User exists but inactive",
-        existedUser.isActive ? 401 : 402
+        existedUser.isActive ? 401 : 403
       );
     }
 
     const { OTP, OTPExpiry } = generateOTP();
-    const hashedPassword = await bcrypt.hash(Password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
-      FullName,
-      Email,
-      Password: hashedPassword,
+      fullName,
+      email,
+      password: hashedPassword,
       OTP,
       OTPExpiry,
     });
@@ -123,7 +72,7 @@ const registerUser = async (req, res) => {
     await newUser.save();
 
     const htmlContent = `
-      <p>Hello, ${FullName}</p>
+      <p>Hello, ${fullName}</p>
       <p>Thank you for registering with WearMyArt!</p>
       <p>Your OTP code is <strong>${OTP}</strong>. It will expire in 10 minutes.</p>
       <p>Please enter this OTP code in the registration form to complete your registration.</p>
@@ -133,7 +82,7 @@ const registerUser = async (req, res) => {
 
     const name = "WearMyArt Registration";
     const subject = "Registration code of WearMyArt";
-    const otpResponse = await sendMail(Email, name, subject, htmlContent);
+    const otpResponse = await sendMail(email, name, subject, htmlContent);
 
     if (!otpResponse.success) {
       return apiResponse(res, false, null, otpResponse.message, 500);
@@ -153,8 +102,21 @@ const registerUser = async (req, res) => {
 
 const sendingMailForLoginUser = async (req, res) => {
   try {
-    const { Email } = req.body;
-    const user = await User.findOne({ Email });
+    const validation = sendingMailForLoginValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ email });
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
@@ -174,7 +136,7 @@ const sendingMailForLoginUser = async (req, res) => {
     user.OTPExpiry = OTPExpiry;
 
     const htmlContent = `
-      <p>Hello, ${user.FullName}</p>
+      <p>Hello, ${user.fullName}</p>
       <p>You've requested to log in to WearMyArt. Your One-Time Password (OTP) code is: <strong>${OTP}</strong></p>
       <p>This OTP will expire in 10 minutes, so please use it before it expires.</p>
       <p>If you encounter any issues or did not request this login attempt, please contact our support team.</p>
@@ -183,7 +145,7 @@ const sendingMailForLoginUser = async (req, res) => {
 
     const name = "WearMyArt Login";
     const subject = "Login code of WearMyArt";
-    const otpResponse = await sendMail(Email, name, subject, htmlContent);
+    const otpResponse = await sendMail(email, name, subject, htmlContent);
 
     await user.save();
 
@@ -194,16 +156,32 @@ const sendingMailForLoginUser = async (req, res) => {
 };
 
 const loginUser = async (req, res) => {
+  const { email, OTP, password } = req.body;
+
+  const validation = loginValidator.safeParse({ email, OTP, password });
+
+  if (!validation.success) {
+    const firstError = validation.error.errors[0];
+    return apiResponse(
+      res,
+      false,
+      null,
+      firstError.message,
+      firstError.statusCode
+    );
+  }
+
   try {
-    const { Email, OTP, Password } = req.body;
-    const user = await User.findOne({ Email });
+    const user = await User.findOne({ email }).select(
+      "+password +OTP +OTPExpiry"
+    )
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
     }
 
-    if (!OTP && !Password) {
-      return apiResponse(res, false, null, "OTP or Password required", 400);
+    if (!OTP && !password) {
+      return apiResponse(res, false, null, "Password or OTP is required", 400);
     }
 
     if (user.isBlocked) {
@@ -211,11 +189,11 @@ const loginUser = async (req, res) => {
     }
 
     if (!user.isActive) {
-      return apiResponse(res, false, null, "User is not verified", 403);
+      return apiResponse(res, false, null, "User is not Active", 403);
     }
 
-    if (Password) {
-      const isMatch = await bcrypt.compare(Password, user.Password);
+    if (password) {
+      const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return apiResponse(res, false, null, "Invalid Password", 400);
       }
@@ -228,34 +206,33 @@ const loginUser = async (req, res) => {
       }
     }
 
-    const { RefreshToken } = generateAndSetTokens(user._id, res);
+    const { refreshToken } = generateAndSetTokens(user._id, res);
 
     const userResponse = {
-      FullName: user.FullName,
-      Email,
+      fullName: user.fullName,
+      email: user.email,
       isAdmin: user.isAdmin,
     };
 
     return apiResponse(
       res,
       true,
-      { user: userResponse, RefreshToken },
-      "User Successfully Login",
+      { user: userResponse, refreshToken },
+      "User successfully logged in",
       200
     );
   } catch (error) {
-    console.log(error.message);
     return apiResponse(res, false, null, error.message, 500);
   }
 };
 
 const autoLogin = async (req, res) => {
   try {
-    const { FullName, Email, isAdmin } = req.user;
+    const { fullName, email, isAdmin } = req.user;
 
     const userResponse = {
-      FullName,
-      Email,
+      fullName,
+      email,
       isAdmin,
     };
 
@@ -290,7 +267,7 @@ const makeAdmin = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     const htmlContent = `
-      <p>Dear ${user.FullName},</p>
+      <p>Dear ${user.fullName},</p>
       <p>Congratulations! Your request has been approved, and you are now an Admin of WearMyArt.</p>
       <p>You now have administrative privileges to manage the platform effectively.</p>
       <p>If you have any questions or need assistance, please feel free to contact our support team.</p>
@@ -302,13 +279,13 @@ const makeAdmin = async (req, res) => {
 
     const name = "WearMyArt Admin";
     const subject = "You are now an Admin of WearMyArt";
-    const otpResponse = await sendMail(user.Email, name, subject, htmlContent);
+    const otpResponse = await sendMail(user.email, name, subject, htmlContent);
 
     return apiResponse(
       res,
       true,
       null,
-      `Now, ${user.FullName} is an Admin`,
+      `Now, ${user.fullName} is an Admin`,
       200
     );
   } catch (error) {
@@ -318,8 +295,23 @@ const makeAdmin = async (req, res) => {
 
 const sendingMailForForgotPassword = async (req, res) => {
   try {
-    const { Email } = req.body;
-    const user = await User.findOne({ Email });
+    const validation = sendingMailForForgotPasswordValidator.safeParse(
+      req.body
+    );
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ email });
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
@@ -335,7 +327,7 @@ const sendingMailForForgotPassword = async (req, res) => {
     user.OTPExpiry = OTPExpiry;
 
     const htmlContent = `
-      <p>Hello, ${user.FullName}</p>
+      <p>Hello, ${user.fullName}</p>
       <p>You've requested to Forgot Password in to WearMyArt. Your One-Time Password (OTP) code is: <strong>${OTP}</strong></p>
       <p>This OTP will expire in 10 minutes, so please use it before it expires.</p>
       <p>If you encounter any issues or did not request this login attempt, please contact our support team.</p>
@@ -344,7 +336,7 @@ const sendingMailForForgotPassword = async (req, res) => {
 
     const name = "WearMyArt Forgot Password";
     const subject = "Forgot Password code of WearMyArt";
-    const otpResponse = await sendMail(Email, name, subject, htmlContent);
+    const otpResponse = await sendMail(email, name, subject, htmlContent);
 
     await user.save();
 
@@ -353,10 +345,24 @@ const sendingMailForForgotPassword = async (req, res) => {
     return apiResponse(res, false, null, error.message, 500);
   }
 };
+
 const otpVerifyForForgotPassword = async (req, res) => {
   try {
-    const { Email, OTP } = req.body;
-    const user = await User.findOne({ Email });
+    const validation = otpVerifyForForgotPasswordValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email, OTP } = req.body;
+    const user = await User.findOne({ email }).select("+OTP +OTPExpiry");
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
@@ -379,10 +385,24 @@ const otpVerifyForForgotPassword = async (req, res) => {
     return apiResponse(res, false, null, error.message, 500);
   }
 };
+
 const forgotPassword = async (req, res) => {
   try {
-    const { Email, OTP, Password } = req.body;
-    const user = await User.findOne({ Email });
+    const validation = forgotPasswordValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email, OTP, password } = req.body;
+    const user = await User.findOne({ email }).select("+OTP +OTPExpiry");
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
@@ -397,32 +417,27 @@ const forgotPassword = async (req, res) => {
       return apiResponse(res, false, null, "OTP Expired", 400);
     }
 
-    const passwordValidation = validatePassword(Password);
-    if (!passwordValidation.success) {
-      return apiResponse(res, false, null, passwordValidation.message, 400);
-    }
-
-    const hashedPassword = await bcrypt.hash(Password, 10);
-    user.Password = hashedPassword;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
 
     await user.save({ validateBeforeSave: true });
 
     const userResponse = {
-      FullName: user.FullName,
-      Email: user.Email,
+      fullName: user.fullName,
+      email: user.email,
     };
 
     const htmlContent = `
-  <p>Hello, ${user.FullName}</p>
-  <p>Your password has been changed successfully for WearMyArt.</p>
-  <p>If you did not request this change, please contact our support team immediately.</p>
-  <p>For security reasons, we recommend using a strong and unique password.</p>
-  <p>Thank you for choosing WearMyArt!</p>
-`;
+      <p>Hello, ${user.fullName}</p>
+      <p>Your password has been changed successfully for WearMyArt.</p>
+      <p>If you did not request this change, please contact our support team immediately.</p>
+      <p>For security reasons, we recommend using a strong and unique password.</p>
+      <p>Thank you for choosing WearMyArt!</p>
+    `;
 
     const name = "WearMyArt Security";
     const subject = "Your Password Has Been Changed Successfully";
-    const otpResponse = await sendMail(Email, name, subject, htmlContent);
+    const otpResponse = await sendMail(email, name, subject, htmlContent);
 
     return apiResponse(
       res,
@@ -534,16 +549,17 @@ const getAllOwnOrder = async (req, res) => {
     return apiResponse(res, false, null, `Error: ${error.message}`, 500);
   }
 };
+
 const getAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments({ isAdmin: false });
 
     const AllUser = await User.find({ isAdmin: false })
-      .select("_id FullName Email isActive isBlocked createdAt")
+      .select("_id fullName email isActive isBlocked createdAt")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -567,6 +583,7 @@ const getAllUsers = async (req, res) => {
     return apiResponse(res, false, null, error.message, 500);
   }
 };
+
 const getSingleUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -581,21 +598,30 @@ const getSingleUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
+    const validation = updateUserValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
     const { _id } = req.user;
-    const { FullName, Email } = req.body;
+    const { fullName, email } = req.body;
 
     const updateData = {};
-    if (FullName) updateData.FullName = FullName;
-    if (Email) {
-      const existingUser = await User.findOne({ Email, _id: { $ne: _id } });
+    if (fullName) updateData.fullName = fullName;
+    if (email) {
+      const existingUser = await User.findOne({ email, _id: { $ne: _id } });
       if (existingUser) {
         return apiResponse(res, false, null, "Email is already in use", 400);
       }
-      updateData.Email = Email;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return apiResponse(res, false, null, "No valid fields to update", 400);
+      updateData.email = email;
     }
 
     const updatedUser = await User.findByIdAndUpdate(_id, updateData, {
@@ -608,8 +634,8 @@ const updateUser = async (req, res) => {
     }
 
     const userResponse = {
-      FullName: updatedUser.FullName,
-      Email: updatedUser.Email,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
     };
 
     const senderName = "WearMyArt Support";
@@ -618,8 +644,8 @@ const updateUser = async (req, res) => {
     await notificationQueue.add(
       "send-email",
       {
-        to: updatedUser.Email,
-        name: updatedUser.FullName,
+        to: updatedUser.email,
+        name: updatedUser.fullName,
         subject,
         senderName,
         topic: "nameChanged",
@@ -649,7 +675,7 @@ const logoutUser = async (req, res) => {
       secure: true,
     };
 
-    res.clearCookie("RefreshToken", options);
+    res.clearCookie("refreshToken", options);
 
     return apiResponse(res, true, null, "User is succesfully Logout", 200);
   } catch (error) {
@@ -677,7 +703,7 @@ const deActivateUser = async (req, res) => {
       secure: true,
     };
 
-    res.clearCookie("RefreshToken", options);
+    res.clearCookie("refreshToken", options);
 
     const senderName = "WearMyArt Support";
     const subject = "Account deactivation Notification";
@@ -708,11 +734,24 @@ const deActivateUser = async (req, res) => {
     return apiResponse(res, false, null, error.message, 500);
   }
 };
+
 const sendingMailForActivate = async (req, res) => {
   try {
-    const { Email } = req.body;
+    const validation = sendingMailForActivateValidator.safeParse(req.body);
 
-    const user = await User.findOne({ Email });
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ email });
 
     if (!user) {
       return apiResponse(res, false, null, "Invalid Email", 400);
@@ -732,8 +771,8 @@ const sendingMailForActivate = async (req, res) => {
     user.OTPExpiry = OTPExpiry;
 
     const htmlContent = `
-      <p>Hello, ${user.FullName}</p>
-      <p>You’ve requested to activate your WearMyArt account. Your One-Time Password (OTP) is: <strong>${OTP}</strong></p>
+      <p>Hello, ${user.fullName}</p>
+      <p>You've requested to activate your WearMyArt account. Your One-Time Password (OTP) is: <strong>${OTP}</strong></p>
       <p>This OTP will expire in 10 minutes. Please use it to verify your account and activate access.</p>
       <p>If you did not request this activation, please ignore this message or contact our support team.</p>
       <p>Thank you,<br/>The WearMyArt Team</p>
@@ -742,7 +781,7 @@ const sendingMailForActivate = async (req, res) => {
     const senderName = "WearMyArt";
     const subject = "WearMyArt Account Activation OTP";
 
-    await sendMail(Email, senderName, subject, htmlContent);
+    await sendMail(email, senderName, subject, htmlContent);
     await user.save();
 
     return apiResponse(
@@ -756,11 +795,24 @@ const sendingMailForActivate = async (req, res) => {
     return apiResponse(res, false, null, error.message, 500);
   }
 };
+
 const verifyActivationOTP = async (req, res) => {
   try {
-    const { Email, OTP } = req.body;
+    const validation = verifyActivationOTPValidator.safeParse(req.body);
 
-    const user = await User.findOne({ Email });
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
+    }
+
+    const { email, OTP } = req.body;
+    const user = await User.findOne({ email }).select("+OTP +OTPExpiry");
 
     if (!user) {
       return apiResponse(res, false, null, "User not found", 404);
@@ -787,8 +839,8 @@ const verifyActivationOTP = async (req, res) => {
     await notificationQueue.add(
       "send-email",
       {
-        to: user.Email,
-        name: user.FullName,
+        to: user.email,
+        name: user.fullName,
         subject,
         senderName,
         topic: "activateUser",
@@ -799,18 +851,18 @@ const verifyActivationOTP = async (req, res) => {
       }
     );
 
-    const { RefreshToken } = generateAndSetTokens(user._id, res);
+    const { refreshToken } = generateAndSetTokens(user._id, res);
 
     const userResponse = {
-      FullName: user.FullName,
-      Email,
+      fullName: user.fullName,
+      email,
       isAdmin: user.isAdmin,
     };
 
     return apiResponse(
       res,
       true,
-      { user: userResponse, RefreshToken },
+      { user: userResponse, refreshToken },
       "User activated successfully",
       200
     );
@@ -821,11 +873,20 @@ const verifyActivationOTP = async (req, res) => {
 
 const blockUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const validation = blockUsersValidator.safeParse(req.body);
 
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-      return apiResponse(res, false, null, "User IDs array is required", 400);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
     }
+
+    const { userIds } = req.body;
 
     const foundUsers = await User.find({ _id: { $in: userIds } });
 
@@ -840,7 +901,7 @@ const blockUsers = async (req, res) => {
     }
 
     await User.updateMany(
-      { _id: { $in: userIds } },
+      { _id: { $in: userIds }, isBlocked: false },
       { $set: { isBlocked: true } }
     );
 
@@ -851,8 +912,8 @@ const blockUsers = async (req, res) => {
       notificationQueue.add(
         "send-email",
         {
-          to: user.Email,
-          name: user.FullName,
+          to: user.email,
+          name: user.fullName,
           subject,
           senderName,
           topic: "blockUser",
@@ -880,11 +941,20 @@ const blockUsers = async (req, res) => {
 
 const unblockUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const validation = unblockUsersValidator.safeParse(req.body);
 
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return apiResponse(res, false, null, "User IDs array is required", 400);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return apiResponse(
+        res,
+        false,
+        null,
+        firstError.message,
+        firstError.statusCode || 400
+      );
     }
+
+    const { userIds } = req.body;
 
     const foundUsers = await User.find({ _id: { $in: userIds } });
 
@@ -899,7 +969,7 @@ const unblockUsers = async (req, res) => {
     }
 
     await User.updateMany(
-      { _id: { $in: userIds } },
+      { _id: { $in: userIds }, isBlocked: true },
       { $set: { isBlocked: false } }
     );
 
@@ -910,8 +980,8 @@ const unblockUsers = async (req, res) => {
       notificationQueue.add(
         "send-email",
         {
-          to: user.Email,
-          name: user.FullName,
+          to: user.email,
+          name: user.fullName,
           subject,
           senderName,
           topic: "unblockUser",

@@ -65,7 +65,6 @@ const addOrder = async (req, res) => {
             console.error("Failed to parse TextStyle:", TextStyle);
           }
         }
-        console.log(parsedTextStyle);
         newOrder = new Order({
           ...orderBase,
           Font,

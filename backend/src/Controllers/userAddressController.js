@@ -1,10 +1,17 @@
 import User from "../models/userModel.js";
 import UserAddress from "../models/userAddressModel.js";
 import apiResponse from "../utils/apiResponse.js";
+import { addAddressValidator, updateAddressValidator, changeDefaultAddressValidator } from "../validators/addressValidator.js";
 
 const addAddress = async (req, res) => {
   try {
     const userId = req.user._id;
+
+    // Validate request body
+    const validationResult = addAddressValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(res, false, null, validationResult.error.errors[0].message, 400);
+    }
 
     const {
       phoneNumber,
@@ -17,7 +24,7 @@ const addAddress = async (req, res) => {
       country,
       addressType,
       label,
-    } = req.body;
+    } = validationResult.data;
 
     const user = await User.findById(userId);
 
@@ -90,6 +97,13 @@ const addAddress = async (req, res) => {
 const updateAddress = async (req, res) => {
   try {
     const { id } = req.params; // id of UserAddress
+
+    // Validate request body
+    const validationResult = updateAddressValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(res, false, null, validationResult.error.errors[0].message, 400);
+    }
+
     const {
       phoneNumber,
       addressLine1,
@@ -101,7 +115,7 @@ const updateAddress = async (req, res) => {
       country,
       addressType,
       label,
-    } = req.body;
+    } = validationResult.data;
 
     // Step 1: Update the address in UserAddress collection
     const updated = await UserAddress.findByIdAndUpdate(
@@ -204,7 +218,14 @@ const getUserAddresses = async (req, res) => {
 const changeDefaultAddress = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { addressId, label } = req.body;
+
+    // Validate request body
+    const validationResult = changeDefaultAddressValidator.safeParse(req.body);
+    if (!validationResult.success) {
+      return apiResponse(res, false, null, validationResult.error.errors[0].message, 400);
+    }
+
+    const { addressId, label } = validationResult.data;
 
     const user = await User.findById(userId);
     if (!user) {
